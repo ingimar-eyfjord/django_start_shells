@@ -41,12 +41,15 @@ function add_folder_structure() {
     touch $1/templates/index.html
     touch $1/templates/_base.html
 
-    echo '{% extends "_base.html" %} 
+    tee -a $1/templates/index.html <<EOF
+'{% extends "_base.html" %} 
 {% block content %}
 
-{% endblock content %}' | tee -a $1/templates/index.html
+{% endblock content %}'
+EOF
 
-    echo '<!DOCTYPE html>
+    tee -a $1/templates/_base.html <<EOF
+'<!DOCTYPE html>
 {% load compress %} 
 {% load static %}
 {% csrf_token %}
@@ -59,7 +62,9 @@ function add_folder_structure() {
     {% block content %}
     {% endblock content %}
     </body>
-</html>' | tee -a $1/templates/_base.html
+</html>'
+EOF
+
 }
 
 function add_env_variable() {
@@ -72,15 +77,17 @@ POSTGRES_DB=
 }
 
 function add_urls_to_app() {
-    echo "from django.urls import path
+touch $1/urls.py
+    tee -a $1/urls.py <<EOF
+"from django.urls import path
 from . import views
 
 app_name = '$1'
 
 urlpatterns = [
     path('', views.index, name='index'),
-]" | tee -a $1/urls.py
-
+]"
+EOF
 }
 
 add_view_function() {
@@ -89,7 +96,6 @@ add_view_function() {
 def index(request):
     return render(request, "index.html")' | tee -a app_name/views.py
 }
-
 
 validate_name() {
     if [[ ! "$1" =~ ^[a-z_]+$ ]]; then
@@ -111,7 +117,8 @@ function install_tailwind() {
     echo "installing tailwind"
     npm --prefix ./$app_name/ install -D tailwindcss@latest postcss@latest autoprefixer@latest
     npx --prefix ./$app_name/ tailwind init
-    echo "module.exports = {
+    tee -a ./$app_name/tailwind.config.js <<EOF
+"module.exports" = {
     purge: [
         './**/*.html',
         './**/*.py',
@@ -121,15 +128,32 @@ function install_tailwind() {
     },
     variants: {},
     plugins: [],
-}" | tee -a ./$app_name/tailwind.config.js
-    echo "@tailwind base;
+}
+EOF
+    ### add tailwind to style.css
+    tee -a ./$app_name/static/css/style.css <<EOF
+"@tailwind base;
 @tailwind components;
-@tailwind utilities;" | tee -a ./$app_name/static/css/style.css
-    echo "const mix = require('laravel-mix');
+@tailwind utilities;"
+EOF
+    ### add tailwind to webpack.mix.js
+    tee -a ./$app_name/webpack.mix.js <<EOF
+"const mix = require('laravel-mix');
 mix.postCss('./$app_name/static/css/style.css', './$app_name/static/css', [
     require('tailwindcss'),
-]);" | tee -a ./$app_name/webpack.mix.js
-    
+]);"
+EOF
+
+
+### ! add tailwind start script to package.json after first bracket
+#   "scripts": {
+#     "start": "npx tailwindcss -i ./static/src/input.css -o ./static/src/output.css --watch"
+#   },
+
+
+
+
+
 }
 
 if [[ "$OSTYPE" =~ ^darwin ]]; then
@@ -194,8 +218,7 @@ if [[ "$OSTYPE" =~ ^darwin ]]; then
                 if [[ $purge_answer == "yes" ]]; then
                     npm --prefix ./$app_name/ install -D @fullhuman/postcss-purgecss
                 else
-                    echo "exiting"
-                    return
+                    echo "ok skipping PurgeCSS"
                 fi
             else
                 echo "Node is not installed"
@@ -213,7 +236,7 @@ if [[ "$OSTYPE" =~ ^darwin ]]; then
         fi
 
         if [[ $server_answer == "yes" ]]; then
-            (npm --prefix ./$app_name/ run dev&)
+            (npm --prefix ./$app_name/ run dev &)
             python manage.py runserver
         else
             echo "exiting"

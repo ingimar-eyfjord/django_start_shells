@@ -94,7 +94,7 @@ add_view_function() {
     echo '
 
 def index(request):
-    return render(request, "index.html")' | tee -a app_name/views.py
+    return render(request, "index.html")' | tee -a $1/views.py
 }
 
 validate_name() {
@@ -144,15 +144,30 @@ mix.postCss('./$app_name/static/css/style.css', './$app_name/static/css', [
 ]);"
 EOF
 
-
-### ! add tailwind start script to package.json after first bracket
 #   "scripts": {
 #     "start": "npx tailwindcss -i ./static/src/input.css -o ./static/src/output.css --watch"
 #   },
+### ! add tailwind start script to package.json after first bracket
 
+    sed -i -e '1h;2,$H;$!d;g' -re "s/({)/\1
 
+    'scripts': {
+    'start': 'npx tailwindcss -i ./static/src/input.css -o ./static/src/output.css --watch'
+           },/g" ./$app_name/package.json
 
+        
 
+    ### add tailwind to index.html
+    # sed -i -e '1h;2,$H;$!d;g' -re "s/(<head>)/\1
+
+    # <link rel='stylesheet' href='{% static 'css/style.css' %}'>
+    # <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+    # <script src='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/js/bootstrap.min.js'></script>
+    # <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css'>
+    # <script src='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/js/all.min.js'></script>
+    # <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css'>/g" ./$app_name/templates/index.html
+
+        
 
 }
 

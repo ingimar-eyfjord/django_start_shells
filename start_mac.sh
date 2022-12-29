@@ -1,25 +1,26 @@
 #!/bin/bash
 
 #set $SETTINGS_FILE variable to full path of the your django project settings.py file
-SETTINGS_FILE="my_project/settings.py"
+
 # checks that app $1 is in the django project settings file
 project_name=''
 app_name=''
 
 is_app_in_django_settings() {
     # checking that django project settings file exists
-    if [ ! -f $SETTINGS_FILE ]; then
-        echo "Error: The django project settings file '$SETTINGS_FILE' does not exist"
-        exit 1
+    if [ ! -f $2 ]; then
+        echo "Error: The django project settings file '$2' does not exist"
+        return
     fi
-    cat $SETTINGS_FILE | grep -Pzo "INSTALLED_APPS\s?=\s?\[[\s\w\.,']*$1[\s\w\.,']*\]\n?" >/dev/null 2>&1
+    cat $2 | grep -Pzo "INSTALLED_APPS\s?=\s?\[[\s\w\.,']*$1[\s\w\.,']*\]\n?" >/dev/null 2>&1
     # now $?=0 if app is in settings file
     # $? not 0 otherwise
 }
 
 # adds app $1 to the django project settings
 add_app2django_settings() {
-    is_app_in_django_settings $1
+    SETTINGS_FILE={$2}'/settings.py'
+    is_app_in_django_settings $1 SETTINGS_FILE
     if [ $? -ne 0 ]; then
         echo "Info. The app '$1' is not in the django project settings file '$SETTINGS_FILE'. Adding."
         sed -i -e '1h;2,$H;$!d;g' -re "s/(INSTALLED_APPS\s?=\s?\[[\n '._a-zA-Z,]*)/\1    '$1',\n/g" $SETTINGS_FILE
@@ -27,7 +28,7 @@ add_app2django_settings() {
         is_app_in_django_settings $1
         if [ $? -ne 0 ]; then
             echo "Error. Could not add the app '$1' to the django project settings file '$SETTINGS_FILE'. Add it manually, then run this script again."
-            exit 1
+            return
         else
             echo "Info. The app '$1' was successfully added to the django settings file '$SETTINGS_FILE'."
         fi
@@ -149,13 +150,9 @@ EOF
 #   },
 ### ! add tailwind start script to package.json after first bracket
 
-    sed -i -e '1h;2,$H;$!d;g' -re "s/({)/\1
+    sed -i '' -e '1h;2,$H;$!d;g' -re 's|({)|\1 \n"scripts": {\n"start": "npx tailwindcss -i ./static/src/input.css -o ./static/src/output.css --watch"\n},|1' ./$app_name/package.json
 
-    'scripts': {
-    'start': 'npx tailwindcss -i ./static/src/input.css -o ./static/src/output.css --watch'
-           },/g" ./$app_name/package.json
 
-        
 
     ### add tailwind to index.html
     # sed -i -e '1h;2,$H;$!d;g' -re "s/(<head>)/\1
@@ -223,8 +220,8 @@ if [[ "$OSTYPE" =~ ^darwin ]]; then
         add_folder_structure $app_name
         add_urls_to_app $app_name
         add_view_function $app_name
-        # add_app2django_settings "app_name"
         # add app_name to INSTALLED_APPS in settings.py
+        # add_app2django_settings $app_name $project_name
 
         if [[ $tailwind_answer == "yes" ]]; then
             # check if node is installed
